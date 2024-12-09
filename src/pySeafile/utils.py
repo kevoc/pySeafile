@@ -1,6 +1,7 @@
 
 import os
 import inspect
+import datetime
 
 
 def path_to_local_file(filename, frame_offset=0):
@@ -13,3 +14,9 @@ def path_to_local_file(filename, frame_offset=0):
     module = inspect.getmodule(frame[0])
     path = os.path.abspath(os.path.dirname(module.__file__))
     return os.path.join(path, filename)
+
+
+def to_datetime(date_string):
+    """Case a string to a datetime object."""
+    return datetime.datetime.strptime(
+        date_string, '%Y-%m-%dT%H:%M:%S%z')

@@ -6,7 +6,10 @@ import requests
 import datetime
 
 from dataclasses import dataclass
+from .utils import to_datetime
+from .items import LibraryItem
 
+from typing import List
 
 TOML_FILE_REQUIRED_SETTINGS = ['server_url', 'library_token']
 
@@ -59,7 +62,7 @@ class Library:
     def server_online(self):
         """Return true if the server is online"""
         
-        return self.get('/api2/ping/').text.strip('"') == 'pong'
+        return self.get('/api2/ping/').json() == 'pong'
 
     def _info_dict(self):
         """Return the raw repo info dict"""
@@ -69,8 +72,7 @@ class Library:
         """Return the library info wrapper class"""
 
         d = self._info_dict()
-        last_mod = datetime.datetime.strptime(
-            d.get('last_modified'), '%Y-%m-%dT%H:%M:%S%z')
+        last_mod = to_datetime(d.get('last_modified'))
 
         return LibraryInfo(
             uuid = d.get('repo_id'),
@@ -80,6 +82,62 @@ class Library:
             last_modified = last_mod,
         )
 
-    def list(self):
+    def list(self, path, files_only=False, directories_only=False,
+             recursive=False, thumbnails=False, thumb_size=48) -> List[LibraryItem]:
         """List all items in the library at the given path."""
 
+        d = list_query_dict(path, files_only, directories_only,
+             recursive, thumbnails, thumb_size)
+
+        resp = self.get('/api/v2.1/via-repo-token/dir/', d)
+        items = resp.json().get('dirent_list', [])
+        return [LibraryItem.from_list_dict(self, d) for d in items]
+
+    def download_link(self, path):
+        """Obtain a download link to a file."""
+
+        resp = self.get('/api/v2.1/via-repo-token/download-link/',
+                        {'path': path})
+        return resp.json()
+
+    def download(self, url, path_on_disk, chunk_size=8192, timeout=10):
+        """Download the file, writing it to a path on disk."""
+
+        # todo: allow setting the range header, and appending to file
+
+        resp = self._session.get(url, stream=True, timeout=timeout)
+
+        if resp.status_code == 416:
+            # the range request was invalid, file download couldn't be resumed.
+            raise RuntimeError('Range header out of range')
+
+        with open(path_on_disk, 'wb') as f:
+            for chunk in resp.iter_content(chunk_size=chunk_size):
+                if len(chunk) > 0:  # filter out keep-alive chunks
+                    f.write(chunk)
+
+
+def list_query_dict(path, files_only, directories_only,
+                    recursive, thumbnails, thumb_size):
+    """Build the query dictionary for listing files"""
+
+    d = dict()
+
+    d['path'] = path
+
+    # type
+    if files_only and directories_only:
+        raise ValueError('cannot have both files only and directories only')
+    elif files_only:
+        d['type'] = 'f'
+    elif directories_only:
+        d['type'] = 'd'
+
+    if recursive:
+        d['recursive'] = '1'
+
+    if thumbnails:
+        d['with_thumbnail'] = 'true'
+        d['thumbnail_size'] = thumb_size
+
+    return d

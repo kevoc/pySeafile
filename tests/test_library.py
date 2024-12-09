@@ -2,7 +2,11 @@
 
 """Tests for the Library Class"""
 
+import os
+import random
+import hashlib
 import datetime
+import tempfile
 
 from unittest import TestCase
 
@@ -39,4 +43,38 @@ class pySeafileLibraryTests(TestCase):
 		self.assertIsInstance(info.last_modified, datetime.datetime)
 
 		self.assertGreater(info.seconds_since_last_modified, 0)
+
+	def test_directory_list(self):
+		"""Ensure directory listings of the library work as expected"""
+
+		lib = Library.from_toml_config(LIBRARY_FILE)
+		contents = lib.list('/')
+
+		self.assertGreater(len(contents), 0)
+
+		random_dir = random.choice([i for i in contents if i.is_directory])
+		sub_contents = random_dir.get_children()
+		self.assertGreater(len(sub_contents), 0)
+
+	def test_downloading(self):
+		"""Ensure the download link endpoint is functioning."""
+
+		lib = Library.from_toml_config(LIBRARY_FILE)
+
+		# get a download link
+		my_link = lib.download_link('/_Latex/GSWLaTeX.pdf')
+
+		# make a writable temp file for the download
+		tmp_path = os.path.join(tempfile.mkdtemp(), 'test.file')
+
+		# download the file.
+		lib.download(my_link, tmp_path)
+
+		sha1 = hashlib.sha1()
+
+		with open(tmp_path, 'rb') as f:
+			sha1.update(f.read())
+
+		self.assertEqual(sha1.hexdigest(), '2b27fec60e8c78b60df6a942e0f34c5488c804ea')
+		breakpoint()
 
