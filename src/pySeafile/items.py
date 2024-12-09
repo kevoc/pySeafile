@@ -13,14 +13,6 @@ if TYPE_CHECKING:
     from .library_api import Library
 
 
-# {'id': '2075f00940ebfdc3021335b2671f034830bbdf8a',
-# 'mtime': '2024-01-02T15:09:19+01:00',
-# 'name': '@eaDir',
-# 'parent_dir': '/',
-# 'permission': 'rw',
-# 'starred': False,
-# 'type': 'dir'}
-
 @dataclass(frozen=True)
 class LibraryItem:
     """A wrapper for a library item."""

@@ -76,5 +76,4 @@ class pySeafileLibraryTests(TestCase):
 			sha1.update(f.read())
 
 		self.assertEqual(sha1.hexdigest(), '2b27fec60e8c78b60df6a942e0f34c5488c804ea')
-		breakpoint()
 
